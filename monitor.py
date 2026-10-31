@@ -1,6 +1,16 @@
 
 import time
 import httpx
+import math
+
+LATENCY_THRESHOLD_MS = 1500
+
+def get_latency_status(latency_ms):
+
+    if latency_ms > LATENCY_THRESHOLD_MS:
+        return "Slow"
+    else:
+        return "Normal"
 
 
 def check_endpoint(url):
@@ -17,9 +27,10 @@ def check_endpoint(url):
         latency_ms = (time.perf_counter() - start_time) * 1000
 
         return {
-            "url": url,
+           "url": url,
             "status_code": response.status_code,
             "latency_ms": round(latency_ms, 2),
+            "latency_status": get_latency_status(latency_ms),
             "success": response.is_success,
             "error": None,
         }
@@ -31,6 +42,7 @@ def check_endpoint(url):
             "url": url,
             "status_code": None,
             "latency_ms": round(latency_ms, 2),
+            "latency_status": get_latency_status(latency_ms),
             "success": False,
             "error": "Timeout",
         }
@@ -42,6 +54,7 @@ def check_endpoint(url):
             "url": url,
             "status_code": None,
             "latency_ms": round(latency_ms, 2),
+            "latency_status": get_latency_status(latency_ms),
             "success": False,
             "error": type(error).__name__,
           
@@ -77,12 +90,37 @@ def generate_summary(results):
     else:
         average_latency = 0
 
+    # Calculate minimum and maximum latency
+    if total > 0:
+        latencies = [result["latency_ms"] for result in results]
+
+        minimum_latency = min(latencies)
+        maximum_latency = max(latencies)
+
+    else:
+        minimum_latency = 0
+        maximum_latency = 0
+    # Calculate P95 latency
+    if total > 0:
+        sorted_latencies = sorted(latencies)
+
+        p95_position = math.ceil(0.95 * total)
+
+        p95_latency = sorted_latencies[p95_position - 1]
+
+    else:
+        p95_latency = 0
+
+
     return {
         "total": total,
         "successful": successful,
         "failed": failed,
         "success_rate": round(success_rate, 2),
-        "average_latency_ms": round(average_latency, 2)
+        "average_latency_ms": round(average_latency, 2),
+        "minimum_latency_ms": round(minimum_latency, 2),
+        "maximum_latency_ms": round(maximum_latency, 2),
+        "p95_latency_ms": round(p95_latency, 2)
     }
     
 
@@ -110,6 +148,9 @@ def main():
     print("Failed:", summary["failed"])
     print("Success Rate:", summary["success_rate"], "%")
     print("Average Latency:", summary["average_latency_ms"], "ms")
+    print("Minimum Latency:", summary["minimum_latency_ms"], "ms")
+    print("Maximum Latency:", summary["maximum_latency_ms"], "ms")
+    print("P95 Latency:", summary["p95_latency_ms"], "ms")
 
 
 if __name__ == "__main__":

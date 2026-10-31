@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from monitor import check_endpoint
+from monitor import check_endpoint, generate_summary
 
 
 def test_successful_response(monkeypatch):
@@ -66,3 +66,56 @@ def test_connection_error(monkeypatch):
     assert result["status_code"] is None
     assert result["success"] is False
     assert result["error"] == "ConnectError"
+
+def test_generate_summary():
+    results = [
+        {"success": True, "latency_ms": 100},
+        {"success": False, "latency_ms": 200},
+        {"success": True, "latency_ms": 300}
+    ]
+
+    summary = generate_summary(results)
+
+    assert summary["total"] == 3
+    assert summary["successful"] == 2
+    assert summary["failed"] == 1
+    assert summary["success_rate"] == 66.67
+    assert summary["average_latency_ms"] == 200.0
+
+
+def test_generate_summary_all_failed():
+    results = [
+        {"success": False, "latency_ms": 100},
+        {"success": False, "latency_ms": 200}
+    ]
+
+    summary = generate_summary(results)
+
+    assert summary["total"] == 2
+    assert summary["successful"] == 0
+    assert summary["failed"] == 2
+    assert summary["success_rate"] == 0
+    assert summary["average_latency_ms"] == 150.0
+
+
+def test_generate_summary_empty():
+    results = []
+
+    summary = generate_summary(results)
+
+    assert summary["total"] == 0
+    assert summary["successful"] == 0
+    assert summary["failed"] == 0
+    assert summary["success_rate"] == 0   
+
+def test_generate_summary_average_latency():
+    results = [
+        {"success": True, "latency_ms": 50},
+        {"success": True, "latency_ms": 150},
+        {"success": False, "latency_ms": 250},
+        {"success": True, "latency_ms": 350}
+    ]
+
+    summary = generate_summary(results)
+
+    assert summary["average_latency_ms"] == 200.0 

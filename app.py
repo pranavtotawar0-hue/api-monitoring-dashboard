@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel, HttpUrl, Field
-from monitor import check_endpoint, generate_summary
+from monitor import check_endpoint
+from services.monitoring_service import monitor_multiple_apis
 
 
 app = FastAPI()
@@ -35,17 +36,5 @@ def monitor_api(request: MonitorRequest):
     return result
 
 @app.post("/monitor/batch")
-def monitor_multiple_apis(request: MonitorBatchRequest):
-
-    results = []
-
-    for url in request.urls:
-        result = check_endpoint(str(url))
-        results.append(result)
-
-    summary = generate_summary(results)
-
-    return {
-    "summary": summary,
-    "results": results
-}
+def monitor_batch(request: MonitorBatchRequest):
+    return monitor_multiple_apis(request.urls)
